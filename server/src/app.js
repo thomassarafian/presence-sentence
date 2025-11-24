@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import mongoSanitize from './middlewares/mongoSanitize.js';
+import mongoSanitize from './middlewares/mongoSanitize.middleware.js';
 import quoteRoutes from './routes/quoteRoutes.js';
 import { connect } from 'http2';
 
