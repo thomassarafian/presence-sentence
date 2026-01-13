@@ -11,6 +11,7 @@ function App() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [quote, setQuote] = useState('');
+  const [quoteId, setQuoteId] = useState(null);
   const [author, setAuthor] = useState('');
   const [newQuote, setNewQuote] = useState('');
   const [message, setMessage] = useState('');
@@ -55,6 +56,7 @@ function App() {
             clearMessageAfterDelay(3000);
             if (result.data.quote) {
               setQuote(result.data.quote.quote);
+              setQuoteId(result.data.quote._id);
               setAuthor(result.data.quote.author);
             }
           } else {
@@ -77,6 +79,7 @@ function App() {
 
     if (result.success && result.data) {
       setQuote(result.data.quote);
+      setQuoteId(result.data._id);
       setAuthor(result.data.author);
     } else {
       setMessage(result.error || "La citation n'a pas pu être affichée.");
@@ -127,6 +130,7 @@ function App() {
         // Display the newly created quote
         if (result.data.quote) {
           setQuote(result.data.quote.quote);
+          setQuoteId(result.data.quote._id);
           setAuthor(result.data.quote.author);
         }
         // Form input reset
@@ -167,7 +171,7 @@ function App() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 to-indigo-100 p-6">
       <div className="w-full max-w-xl bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/40 flex flex-col">
-        <QuoteDisplay quote={quote} author={author} onNewQuote={fetchQuote} />
+        <QuoteDisplay quote={quote} quoteId={quoteId} author={author} onNewQuote={fetchQuote} />
 
         {isAuthenticated && user && !user.emailVerified && (
           <div className="mb-4 p-4 bg-orange-100 border border-orange-300 rounded-lg text-orange-800 text-sm">
