@@ -1,24 +1,44 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useRef, useCallback } from 'react';
 import {
   getCurrentUser,
   login as loginService,
   register as registerService,
   logout as logoutService,
+  refreshToken as refreshTokenService,
 } from '../services/authService';
 
 const AuthContext = createContext(null);
+
+// Refresh token 1 minute before expiry (access token = 15 min)
+const REFRESH_INTERVAL = 14 * 60 * 1000; // 14 minutes
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const refreshIntervalRef = useRef(null);
 
-  // Check if user is authenticated on mount
-  useEffect(() => {
-    checkAuth();
+  const clearRefreshInterval = () => {
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+  };
+
+  const startRefreshInterval = useCallback(() => {
+    clearRefreshInterval();
+    refreshIntervalRef.current = setInterval(async () => {
+      const result = await refreshTokenService();
+      if (!result.success) {
+        // Refresh failed, logout user
+        setUser(null);
+        setIsAuthenticated(false);
+        clearRefreshInterval();
+      }
+    }, REFRESH_INTERVAL);
   }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       setLoading(true);
       const result = await getCurrentUser();
@@ -26,18 +46,27 @@ export const AuthProvider = ({ children }) => {
       if (result.success && result.data.user) {
         setUser(result.data.user);
         setIsAuthenticated(true);
+        startRefreshInterval();
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        clearRefreshInterval();
       }
     } catch (error) {
       console.error('Auth check failed:', error);
       setUser(null);
       setIsAuthenticated(false);
+      clearRefreshInterval();
     } finally {
       setLoading(false);
     }
-  };
+  }, [startRefreshInterval]);
+
+  // Check auth on mount
+  useEffect(() => {
+    checkAuth();
+    return () => clearRefreshInterval();
+  }, [checkAuth]);
 
   const login = async (credentials) => {
     try {
@@ -46,6 +75,7 @@ export const AuthProvider = ({ children }) => {
       if (result.success) {
         setUser(result.data.user);
         setIsAuthenticated(true);
+        startRefreshInterval();
         return { success: true };
       }
 
@@ -63,6 +93,7 @@ export const AuthProvider = ({ children }) => {
       if (result.success) {
         setUser(result.data.user);
         setIsAuthenticated(true);
+        startRefreshInterval();
         return { success: true, message: result.data.message };
       }
 
@@ -81,6 +112,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
       setIsAuthenticated(false);
+      clearRefreshInterval();
     }
   };
 

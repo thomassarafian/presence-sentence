@@ -8,13 +8,13 @@ import {
 
 const router = express.Router();
 
+// IMPORTANT: /user/limits must come BEFORE /:quoteId to avoid "user" being parsed as quoteId
+router.get('/user/limits', optionalAuth, getLimits);
+
 // Get existing meditation for a quote (if any)
 router.get('/:quoteId', optionalAuth, getMeditation);
 
 // Generate meditation for a quote
 router.post('/:quoteId/generate', optionalAuth, generateMeditationForQuote);
-
-// Get current user's remaining generations
-router.get('/user/limits', optionalAuth, getLimits);
 
 export default router;
