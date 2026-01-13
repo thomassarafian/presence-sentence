@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import mongoSanitize from './middlewares/mongoSanitize.middleware.js';
 import quoteRoutes from './routes/quoteRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import meditationRoutes from './routes/meditationRoutes.js';
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use('/api/', limiter);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/quotes', quoteRoutes);
+app.use('/api/meditations', meditationRoutes);
 
 // 404 handler
 app.use((req, res) => {
