@@ -3,13 +3,15 @@ import User from '../models/User.js';
 
 /**
  * Get public quotes by author pseudo
- * GET /api/quotes/author/:pseudo
+ * GET /api/quotes/author/:pseudo?page=1&limit=10
  */
 export const getQuotesByAuthor = async (req, res) => {
   try {
     const { pseudo } = req.params;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+    const skip = (page - 1) * limit;
 
-    // Find user by pseudo
     const user = await User.findOne({ pseudo });
 
     if (!user) {
@@ -20,11 +22,12 @@ export const getQuotesByAuthor = async (req, res) => {
       });
     }
 
-    // Get only public quotes from this author
-    const quotes = await Quote.find({
-      createdBy: user._id,
-      isPublic: true,
-    }).sort({ createdAt: -1 });
+    const filter = { createdBy: user._id, isPublic: true };
+
+    const [quotes, total] = await Promise.all([
+      Quote.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      Quote.countDocuments(filter),
+    ]);
 
     res.status(200).json({
       success: true,
@@ -34,7 +37,12 @@ export const getQuotesByAuthor = async (req, res) => {
           createdAt: user.createdAt,
         },
         quotes,
-        count: quotes.length,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
       },
       error: null,
     });
@@ -143,21 +151,36 @@ export const createQuote = async (req, res) => {
 
 /**
  * Get all quotes for current user
- * GET /api/quotes/my-quotes
+ * GET /api/quotes/my-quotes?page=1&limit=10
  */
 export const getUserQuotes = async (req, res) => {
   try {
     const userId = req.user.userId;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
+    const skip = (page - 1) * limit;
 
-    const quotes = await Quote.find({ createdBy: userId })
-      .sort({ createdAt: -1 })
-      .populate('createdBy', 'pseudo emailVerified');
+    const filter = { createdBy: userId };
+
+    const [quotes, total] = await Promise.all([
+      Quote.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('createdBy', 'pseudo emailVerified'),
+      Quote.countDocuments(filter),
+    ]);
 
     res.status(200).json({
       success: true,
       data: {
         quotes,
-        count: quotes.length,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit),
+        },
       },
       error: null,
     });

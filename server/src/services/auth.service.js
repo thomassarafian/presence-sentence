@@ -1,12 +1,19 @@
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
+import crypto from 'crypto';
 import User from '../models/User.js';
 import Quote from '../models/Quote.js';
 
 // JWT Helper Functions
 const generateAccessToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
-    expiresIn: '7d', // V1: Single token avec long expiry
+    expiresIn: '15m',
+    issuer: 'quote-app',
+  });
+};
+
+const generateRefreshToken = (payload) => {
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+    expiresIn: '7d',
     issuer: 'quote-app',
   });
 };
@@ -17,18 +24,29 @@ export const verifyAccessToken = (token) => {
   });
 };
 
-// Email Verification Token Generator
+export const verifyRefreshToken = (token) => {
+  return jwt.verify(token, process.env.JWT_REFRESH_SECRET, {
+    issuer: 'quote-app',
+  });
+};
+
+// Email Verification Token Generator (hashed for security)
 const generateEmailVerificationToken = () => {
-  const token = uuidv4();
+  const token = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
   const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-  return { token, expiry };
+  return { token, hashedToken, expiry };
+};
+
+// Hash a token for comparison
+export const hashToken = (token) => {
+  return crypto.createHash('sha256').update(token).digest('hex');
 };
 
 /**
  * Register a new user
  */
 export const registerUser = async ({ email, pseudo, password }) => {
-  // Check if user already exists
   const existingUser = await User.findOne({
     $or: [{ email }, { pseudo }],
   });
@@ -42,23 +60,22 @@ export const registerUser = async ({ email, pseudo, password }) => {
     }
   }
 
-  // Generate email verification token
-  const { token: verificationToken, expiry } = generateEmailVerificationToken();
+  // Generate email verification token (store hashed, return plain)
+  const { token: verificationToken, hashedToken, expiry } = generateEmailVerificationToken();
 
-  // Create user (password will be hashed by pre-save hook)
   const user = await User.create({
     email,
     pseudo,
     password,
-    emailVerificationToken: verificationToken,
+    emailVerificationToken: hashedToken,
     verificationTokenExpiry: expiry,
     emailVerified: false,
   });
 
-  // Generate JWT token
-  const accessToken = generateAccessToken({ userId: user._id, role: user.role });
+  const tokenPayload = { userId: user._id, role: user.role };
+  const accessToken = generateAccessToken(tokenPayload);
+  const refreshToken = generateRefreshToken(tokenPayload);
 
-  // Return user without sensitive data
   const userResponse = {
     id: user._id,
     email: user.email,
@@ -71,6 +88,7 @@ export const registerUser = async ({ email, pseudo, password }) => {
   return {
     user: userResponse,
     accessToken,
+    refreshToken,
     verificationToken,
   };
 };
@@ -79,28 +97,25 @@ export const registerUser = async ({ email, pseudo, password }) => {
  * Login user
  */
 export const loginUser = async ({ email, password }) => {
-  // Find user with password field
   const user = await User.findOne({ email }).select('+password');
 
   if (!user) {
     throw new Error('Email ou mot de passe incorrect');
   }
 
-  // Verify password
   const isPasswordValid = await user.comparePassword(password);
 
   if (!isPasswordValid) {
     throw new Error('Email ou mot de passe incorrect');
   }
 
-  // Generate JWT token
-  const accessToken = generateAccessToken({ userId: user._id, role: user.role });
+  const tokenPayload = { userId: user._id, role: user.role };
+  const accessToken = generateAccessToken(tokenPayload);
+  const refreshToken = generateRefreshToken(tokenPayload);
 
-  // Update last login
   user.lastLogin = new Date();
   await user.save();
 
-  // Return user without sensitive data
   const userResponse = {
     id: user._id,
     email: user.email,
@@ -113,6 +128,29 @@ export const loginUser = async ({ email, password }) => {
   return {
     user: userResponse,
     accessToken,
+    refreshToken,
+  };
+};
+
+/**
+ * Refresh access token using refresh token
+ */
+export const refreshAccessToken = async (refreshToken) => {
+  const decoded = verifyRefreshToken(refreshToken);
+
+  const user = await User.findById(decoded.userId);
+
+  if (!user) {
+    throw new Error('Utilisateur non trouvé');
+  }
+
+  const tokenPayload = { userId: user._id, role: user.role };
+  const newAccessToken = generateAccessToken(tokenPayload);
+  const newRefreshToken = generateRefreshToken(tokenPayload);
+
+  return {
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
   };
 };
 
@@ -120,26 +158,25 @@ export const loginUser = async ({ email, password }) => {
  * Verify email with token
  */
 export const verifyUserEmail = async (token) => {
+  const hashedToken = hashToken(token);
+
   const user = await User.findOne({
-    emailVerificationToken: token,
+    emailVerificationToken: hashedToken,
   }).select('+emailVerificationToken +verificationTokenExpiry');
 
   if (!user) {
     throw new Error('Token de vérification invalide');
   }
 
-  // Check if token is expired
   if (user.verificationTokenExpiry < new Date()) {
     throw new Error('Le token de vérification a expiré');
   }
 
-  // Mark email as verified
   user.emailVerified = true;
   user.emailVerificationToken = undefined;
   user.verificationTokenExpiry = undefined;
   await user.save();
 
-  // Update all user's quotes to be public
   await Quote.updateMany({ createdBy: user._id }, { isPublic: true });
 
   const userResponse = {
@@ -153,10 +190,9 @@ export const verifyUserEmail = async (token) => {
 };
 
 /**
- * Logout user (V1: simple, cookie cleared client-side)
+ * Logout user
  */
 export const logoutUser = async () => {
-  // V1: No server-side action needed, cookie will be cleared client-side
   return { success: true };
 };
 

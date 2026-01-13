@@ -4,31 +4,33 @@ import {
   verifyUserEmail,
   logoutUser,
   getUserProfile,
+  refreshAccessToken,
 } from '../services/auth.service.js';
 import { sendVerificationEmail } from '../services/email.service.js';
 
-// Helper: Set HTTP-only cookie
-const setAuthCookie = (res, token) => {
+// Cookie configuration
+const getCookieOptions = (maxAge) => {
   const isProduction = process.env.NODE_ENV === 'production';
-
-  res.cookie('accessToken', token, {
+  return {
     httpOnly: true,
-    secure: isProduction, // HTTPS only in production
+    secure: isProduction,
     sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge,
     domain: process.env.COOKIE_DOMAIN || undefined,
-  });
+  };
 };
 
-// Helper: Clear auth cookie
-const clearAuthCookie = (res) => {
-  res.cookie('accessToken', '', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-    maxAge: 0,
-    domain: process.env.COOKIE_DOMAIN || undefined,
-  });
+// Helper: Set auth cookies (access + refresh)
+const setAuthCookies = (res, accessToken, refreshToken) => {
+  res.cookie('accessToken', accessToken, getCookieOptions(15 * 60 * 1000)); // 15 minutes
+  res.cookie('refreshToken', refreshToken, getCookieOptions(7 * 24 * 60 * 60 * 1000)); // 7 days
+};
+
+// Helper: Clear auth cookies
+const clearAuthCookies = (res) => {
+  const clearOptions = getCookieOptions(0);
+  res.cookie('accessToken', '', clearOptions);
+  res.cookie('refreshToken', '', clearOptions);
 };
 
 /**
@@ -41,15 +43,14 @@ export const register = async (req, res) => {
 
     const result = await registerUser({ email, pseudo, password });
 
-    // Set HTTP-only cookie
-    setAuthCookie(res, result.accessToken);
+    // Set HTTP-only cookies
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     // Send verification email
     try {
       await sendVerificationEmail(email, pseudo, result.verificationToken);
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
-      // Don't fail registration if email fails
     }
 
     res.status(201).json({
@@ -63,7 +64,6 @@ export const register = async (req, res) => {
   } catch (error) {
     console.error('Register error:', error);
 
-    // Handle specific errors
     if (error.message.includes('déjà utilisé')) {
       return res.status(400).json({
         success: false,
@@ -90,8 +90,8 @@ export const login = async (req, res) => {
 
     const result = await loginUser({ email, password });
 
-    // Set HTTP-only cookie
-    setAuthCookie(res, result.accessToken);
+    // Set HTTP-only cookies
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     res.status(200).json({
       success: true,
@@ -121,15 +121,51 @@ export const login = async (req, res) => {
 };
 
 /**
- * Refresh token (V1: Not implemented, using single long-lived token)
+ * Refresh access token
  * POST /api/auth/refresh
  */
 export const refreshToken = async (req, res) => {
-  res.status(501).json({
-    success: false,
-    data: null,
-    error: 'Refresh token not implemented in V1',
-  });
+  try {
+    const token = req.cookies.refreshToken;
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        error: 'Refresh token manquant',
+      });
+    }
+
+    const result = await refreshAccessToken(token);
+
+    // Set new cookies
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+
+    res.status(200).json({
+      success: true,
+      data: { message: 'Token rafraîchi avec succès' },
+      error: null,
+    });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+
+    // Clear cookies on refresh failure
+    clearAuthCookies(res);
+
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        error: 'Session expirée, veuillez vous reconnecter',
+      });
+    }
+
+    res.status(401).json({
+      success: false,
+      data: null,
+      error: 'Token invalide',
+    });
+  }
 };
 
 /**
@@ -140,21 +176,19 @@ export const logout = async (req, res) => {
   try {
     await logoutUser();
 
-    // Clear cookie
-    clearAuthCookie(res);
+    // Clear cookies
+    clearAuthCookies(res);
 
     res.status(200).json({
       success: true,
-      data: {
-        message: 'Déconnexion réussie',
-      },
+      data: { message: 'Déconnexion réussie' },
       error: null,
     });
   } catch (error) {
     console.error('Logout error:', error);
 
-    // Clear cookie even if error
-    clearAuthCookie(res);
+    // Clear cookies even if error
+    clearAuthCookies(res);
 
     res.status(500).json({
       success: false,
@@ -167,11 +201,9 @@ export const logout = async (req, res) => {
 /**
  * Get current user profile
  * GET /api/auth/me
- * Returns user data if authenticated, or user: null if not (no 401 error)
  */
 export const me = async (req, res) => {
   try {
-    // If no user in request (not authenticated), return null without error
     if (!req.user) {
       return res.status(200).json({
         success: true,
@@ -213,18 +245,14 @@ export const verifyEmail = async (req, res) => {
       success: true,
       data: {
         user: result.user,
-        message:
-          'Email vérifié avec succès ! Vos citations sont maintenant publiques.',
+        message: 'Email vérifié avec succès ! Vos citations sont maintenant publiques.',
       },
       error: null,
     });
   } catch (error) {
     console.error('Email verification error:', error);
 
-    if (
-      error.message.includes('invalide') ||
-      error.message.includes('expiré')
-    ) {
+    if (error.message.includes('invalide') || error.message.includes('expiré')) {
       return res.status(400).json({
         success: false,
         data: null,

@@ -141,6 +141,29 @@ export const getCurrentUser = async () => {
 };
 
 /**
+ * Refresh access token
+ */
+export const refreshToken = async () => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      return { success: true };
+    }
+
+    return { success: false, error: data.error };
+  } catch (error) {
+    console.error('Refresh token failed:', error);
+    return { success: false, error: 'Erreur de connexion' };
+  }
+};
+
+/**
  * Verify email with token
  */
 export const verifyEmail = async (token) => {
