@@ -8,22 +8,18 @@ const mongoSanitize = (req, res, next) => {
       return obj;
     }
 
-    // Gérer les arrays
     if (Array.isArray(obj)) {
       return obj.map((item) => sanitize(item));
     }
 
-    // Gérer les objets
     const sanitized = {};
 
     for (const [key, value] of Object.entries(obj)) {
-      // Bloquer les clés dangereuses
       if (key.startsWith('$') || key.includes('.')) {
         console.warn(`🛡️  Injection NoSQL bloquée - clé: "${key}"`);
         continue; // On ignore cette clé
       }
 
-      // Nettoyer récursivement la valeur
       sanitized[key] =
         typeof value === 'object' && value !== null ? sanitize(value) : value;
     }
@@ -31,17 +27,24 @@ const mongoSanitize = (req, res, next) => {
     return sanitized;
   };
 
-  // Nettoyer body, query et params
   if (req.body) {
-    sanitize(req.body);
+    req.body = sanitize(req.body);
   }
 
-  if (req.query) {
-    sanitize(req.query);
+  if (req.query && typeof req.query === 'object') {
+    const sanitizedQuery = sanitize(req.query);
+    for (const key of Object.keys(req.query)) {
+      delete req.query[key];
+    }
+    Object.assign(req.query, sanitizedQuery);
   }
 
-  if (req.params) {
-    sanitize(req.params);
+  if (req.params && typeof req.params === 'object') {
+    const sanitizedParams = sanitize(req.params);
+    for (const key of Object.keys(req.params)) {
+      delete req.params[key];
+    }
+    Object.assign(req.params, sanitizedParams);
   }
 
   next();
