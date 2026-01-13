@@ -1,4 +1,4 @@
-# Citation Présence
+# Citation Presence
 
 A mindful quote application with AI-powered guided meditations. Share inspiring quotes and receive personalized meditation guidance to deepen your contemplation practice.
 
@@ -206,39 +206,6 @@ presence-sentence/
 |----------|-------------|----------|
 | `VITE_API_URL` | Backend API URL | Yes |
 
-## Scripts
-
-### Server
-```bash
-npm run dev      # Start development server with nodemon
-npm start        # Start production server
-npm run lint     # Run ESLint
-npm run format   # Format with Prettier
-```
-
-### Client
-```bash
-npm run dev      # Start Vite dev server
-npm run build    # Build for production
-npm run preview  # Preview production build
-npm run lint     # Run ESLint
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [OpenRouter](https://openrouter.ai) for AI model access
-- [Resend](https://resend.com) for email delivery
-- [TailwindCSS](https://tailwindcss.com) for styling
-- [Framer Motion](https://www.framer.com/motion/) for animations
