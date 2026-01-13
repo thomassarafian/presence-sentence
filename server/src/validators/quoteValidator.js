@@ -5,23 +5,15 @@ export const validateQuote = [
     .trim()
     .notEmpty()
     .withMessage('La citation ne peut pas être vide')
-    .isLength({ min: 10, max: 500 })
-    .withMessage('La citation doit contenir entre 10 et 500 caractères')
-    .escape(),
-  body('author')
-    .trim()
-    .notEmpty()
-    .withMessage("L'auteur ne peut pas être vide")
-    .isLength({ min: 1, max: 100 })
-    .withMessage("L'auteur doit contenir entre 10 et 100 caractères")
-    .escape(),
+    .isLength({ min: 5, max: 500 })
+    .withMessage('La citation doit contenir entre 5 et 500 caractères'),
 
   (req, res, next) => {
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
       return res.status(400).json({
-        sucess: false,
+        success: false,
         data: null,
         errors: errors.array().map((err) => ({
           field: err.path,

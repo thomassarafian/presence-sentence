@@ -1,6 +1,10 @@
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
 const QuoteDisplay = ({ quote, author, onNewQuote }) => {
+  const authorDisplay = author || 'Auteur inconnu';
+  const isAnonymous = !author || author === 'Anonymous' || author === 'Auteur inconnu';
+
   return (
     <>
       <div className="flex flex-col justify-center h-[250px] overflow-y-auto mb-6">
@@ -18,7 +22,17 @@ const QuoteDisplay = ({ quote, author, onNewQuote }) => {
           key={`author-${author || 'empty'}`}
           className="text-lg text-slate-500 font-medium text-center mt-4"
         >
-          — {author || 'Auteur inconnu'}
+          —{' '}
+          {isAnonymous ? (
+            authorDisplay
+          ) : (
+            <Link
+              to={`/auteur/${encodeURIComponent(author)}`}
+              className="hover:text-indigo-600 hover:underline transition-colors"
+            >
+              {authorDisplay}
+            </Link>
+          )}
         </p>
       </div>
 

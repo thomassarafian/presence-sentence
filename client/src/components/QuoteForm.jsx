@@ -1,8 +1,6 @@
 const QuoteForm = ({
   newQuote,
-  newAuthor,
   onQuoteChange,
-  onAuthorChange,
   onSubmit,
   message,
   errors,
@@ -13,7 +11,7 @@ const QuoteForm = ({
       {message && (
         <p
           className={`text-center text-sm font-semibold ${
-            message.includes('bien') ? 'text-green-600' : 'text-red-500'
+            message.includes('bien') || message.includes('créée') ? 'text-green-600' : 'text-red-500'
           }`}
         >
           {message}
@@ -28,38 +26,16 @@ const QuoteForm = ({
           value={newQuote}
           onChange={(e) => {
             onQuoteChange(e.target.value);
-            if (errors.quote) {
-              // Gérer l'erreur si nécessaire
-            }
           }}
           required
           type="text"
-          className={`w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none shadow-sm bg-white/80 ${
-            errors.quote
-              ? 'border-red-400 focus:ring-2 focus:ring-red-400'
-              : 'border-slate-300 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400'
-          }`}
+          placeholder="Entrez votre citation..."
+          className={`w-full px-4 py-2.5 rounded-xl border ${
+            errors.quote ? 'border-red-500' : 'border-slate-300'
+          } focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none shadow-sm bg-white/80`}
         />
         {errors.quote && (
           <p className="text-red-500 text-sm mt-1">{errors.quote}</p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-slate-700 font-medium mb-1">Auteur</label>
-        <input
-          value={newAuthor}
-          onChange={(e) => onAuthorChange(e.target.value)}
-          required
-          type="text"
-          className={`w-full px-4 py-2.5 rounded-xl border outline-none shadow-sm bg-white/80 ${
-            errors.author
-              ? 'border-red-400 focus:ring-2 focus:ring-red-400'
-              : 'border-slate-300 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400'
-          }`}
-        />
-        {errors.author && (
-          <p className="text-red-500 text-sm mt-1">{errors.author}</p>
         )}
       </div>
 
@@ -67,7 +43,7 @@ const QuoteForm = ({
         disabled={loading}
         className="mt-2 py-3 bg-slate-700 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-60 cursor-pointer"
       >
-        {loading ? 'Envoi...' : 'Ajouter cette citation'}
+        {loading ? 'Envoi...' : 'Ajouter ma citation'}
       </button>
     </form>
   );
