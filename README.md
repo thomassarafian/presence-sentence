@@ -2,6 +2,10 @@
 
 A mindful quote application with AI-powered guided meditations. Share inspiring quotes and receive personalized meditation guidance to deepen your contemplation practice.
 
+<img width="500" height="779" alt="Screenshot 2026-01-14 at 19 55 31" src="https://github.com/user-attachments/assets/11ac8c40-40dd-47e2-a8fc-46ab88988db1" />
+<img width="500" height="779" alt="Screenshot 2026-01-14 at 19 56 14" src="https://github.com/user-attachments/assets/63f9edc0-1070-48fb-b82b-de39bbed8585" />
+
+
 ![Node.js](https://img.shields.io/badge/Node.js-22+-339933?logo=node.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![MongoDB](https://img.shields.io/badge/MongoDB-8-47A248?logo=mongodb&logoColor=white)
